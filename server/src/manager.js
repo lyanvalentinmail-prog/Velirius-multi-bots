@@ -85,6 +85,19 @@ class BotManager {
       throw new Error('Para pairing code se necesita un número con código de país, ej. 59896719709')
     }
 
+    // El pairing code exige credenciales frescas: si hay restos de un
+    // intento QR anterior sin registrar, se borran antes de empezar.
+    if (method === 'pairing') {
+      const authDir = path.join(config.AUTH_DIR, id)
+      const credsFile = path.join(authDir, 'creds.json')
+      try {
+        if (fs.existsSync(credsFile)) {
+          const creds = JSON.parse(fs.readFileSync(credsFile, 'utf8'))
+          if (!creds.registered) fs.rmSync(authDir, { recursive: true, force: true })
+        }
+      } catch (_) { /* carpeta inexistente o inválida: se recrea */ }
+    }
+
     this.instances.set(id, {
       sock: null,
       method,
@@ -142,13 +155,15 @@ class BotManager {
     // ── Pairing code (solo si la sesión aún no está registrada) ──
     if (method === 'pairing' && !sock.authState.creds.registered) {
       try {
+        // Pequeña espera a que el socket inicialice el handshake.
         await delay(2500)
         const rawCode = await sock.requestPairingCode(phone)
         const pairingCode = (rawCode || '').match(/.{1,4}/g)?.join('-') || rawCode
-        store.saveSession(id, { status: 'esperando pairing', pairingCode })
+        store.saveSession(id, { status: 'esperando pairing', pairingCode, qr: null })
         this.log(id, `Pairing code generado: ${pairingCode}`)
       } catch (err) {
         this.log(id, `Fallo al pedir pairing code: ${err.message}`, 'error')
+        store.saveSession(id, { status: 'error en pairing' })
       }
     }
 
@@ -158,10 +173,14 @@ class BotManager {
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update
 
-      if (qr) {
+      if (qr && instance.method === 'pairing') {
+        // En modo pairing el QR también puede emitirse, pero NO debe
+        // pisar el pairing code que ya se mostró en el dashboard.
+        this.log(id, 'QR interno recibido (ignorado: vinculación por pairing code)')
+      } else if (qr) {
         try {
           const dataUrl = await QRCode.toDataURL(qr, { width: 264, margin: 1 })
-          store.saveSession(id, { status: 'esperando QR', qr: dataUrl, pairingCode: null })
+          store.saveSession(id, { status: 'esperando QR', qr: dataUrl })
           if (process.stdout.isTTY) {
             qrTerminal.generate(qr, { small: true }, (qrText) => {
               this.log(id, `QR para ${bot.name}:\n${qrText}`)

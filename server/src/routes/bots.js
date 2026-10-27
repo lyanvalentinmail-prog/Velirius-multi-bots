@@ -9,6 +9,21 @@ const { memoryUsage } = require('../menu')
 
 const router = express.Router()
 
+// Devuelve el bot solo si pertenece al usuario autenticado.
+function ownedBot(req, res) {
+  const bot = store.get(req.params.id)
+  if (!bot) {
+    res.status(404).json({ ok: false, error: 'Bot no encontrado' })
+    return null
+  }
+  // El token de servicio (DASHBOARD_TOKEN) puede gestionar todos.
+  if (!req.service && bot.ownerId && bot.ownerId !== req.user.id) {
+    res.status(403).json({ ok: false, error: 'Este sub-bot pertenece a otra cuenta' })
+    return null
+  }
+  return bot
+}
+
 function serialize(bot) {
   return {
     ...bot,
@@ -23,6 +38,7 @@ router.get('/meta', (req, res) => {
   res.json({
     ok: true,
     appName: process.env.APP_NAME || 'Velirius Multi-Bots',
+    user: { email: req.user.email, name: req.user.name },
     veliriusApi: velirius.BASE,
     memory: memoryUsage(),
     uptimeMs: process.uptime() * 1000,
@@ -32,9 +48,9 @@ router.get('/meta', (req, res) => {
   })
 })
 
-// ── CRUD de sub-bots ────────────────────────────────────────
+// ── CRUD de sub-bots (aislado por usuario) ───────────────────
 router.get('/bots', (req, res) => {
-  res.json({ ok: true, bots: store.list().map(serialize) })
+  res.json({ ok: true, bots: store.listForOwner(req.service ? null : req.user.id).map(serialize) })
 })
 
 router.post('/bots', (req, res) => {
@@ -42,13 +58,13 @@ router.post('/bots', (req, res) => {
   if (!name || !String(name).trim()) {
     return res.status(400).json({ ok: false, error: 'El nombre del bot es obligatorio' })
   }
-  const bot = store.create(req.body)
+  const bot = store.create(req.body, req.service ? null : req.user.id)
   res.status(201).json({ ok: true, bot: serialize(bot) })
 })
 
 router.get('/bots/:id', (req, res) => {
-  const bot = store.get(req.params.id)
-  if (!bot) return res.status(404).json({ ok: false, error: 'Bot no encontrado' })
+  const bot = ownedBot(req, res)
+  if (!bot) return
   res.json({ ok: true, bot: serialize(bot), logs: manager.getLogs(bot.id) })
 })
 
@@ -59,6 +75,7 @@ const PATCHABLE = [
 ]
 
 router.patch('/bots/:id', (req, res) => {
+  if (!ownedBot(req, res)) return
   const patch = {}
   for (const key of PATCHABLE) {
     if (req.body && req.body[key] !== undefined) patch[key] = req.body[key]
@@ -73,15 +90,15 @@ router.patch('/bots/:id', (req, res) => {
     return res.status(400).json({ ok: false, error: 'owners debe ser un array de números' })
   }
   const bot = store.update(req.params.id, patch)
-  if (!bot) return res.status(404).json({ ok: false, error: 'Bot no encontrado' })
   res.json({ ok: true, bot: serialize(bot) })
 })
 
 router.delete('/bots/:id', async (req, res) => {
+  const bot = ownedBot(req, res)
+  if (!bot) return
   try {
     if (manager.isRunning(req.params.id)) await manager.logout(req.params.id)
-    const removed = store.remove(req.params.id)
-    if (!removed) return res.status(404).json({ ok: false, error: 'Bot no encontrado' })
+    store.remove(req.params.id)
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message })
@@ -90,6 +107,7 @@ router.delete('/bots/:id', async (req, res) => {
 
 // ── Control de la sesión de WhatsApp ────────────────────────
 router.post('/bots/:id/start', async (req, res) => {
+  if (!ownedBot(req, res)) return
   try {
     const { method, phone } = req.body || {}
     await manager.start(req.params.id, { method, phone })
@@ -100,6 +118,7 @@ router.post('/bots/:id/start', async (req, res) => {
 })
 
 router.post('/bots/:id/stop', async (req, res) => {
+  if (!ownedBot(req, res)) return
   try {
     await manager.stop(req.params.id)
     res.json({ ok: true, session: manager.sessionOf(req.params.id) })
@@ -109,6 +128,7 @@ router.post('/bots/:id/stop', async (req, res) => {
 })
 
 router.post('/bots/:id/restart', async (req, res) => {
+  if (!ownedBot(req, res)) return
   try {
     await manager.restart(req.params.id)
     res.json({ ok: true, session: manager.sessionOf(req.params.id) })
@@ -118,6 +138,7 @@ router.post('/bots/:id/restart', async (req, res) => {
 })
 
 router.post('/bots/:id/logout', async (req, res) => {
+  if (!ownedBot(req, res)) return
   try {
     await manager.logout(req.params.id)
     res.json({ ok: true, session: manager.sessionOf(req.params.id) })
@@ -127,12 +148,12 @@ router.post('/bots/:id/logout', async (req, res) => {
 })
 
 router.get('/bots/:id/session', (req, res) => {
-  if (!store.get(req.params.id)) return res.status(404).json({ ok: false, error: 'Bot no encontrado' })
+  if (!ownedBot(req, res)) return
   res.json({ ok: true, session: manager.sessionOf(req.params.id) })
 })
 
 router.get('/bots/:id/logs', (req, res) => {
-  if (!store.get(req.params.id)) return res.status(404).json({ ok: false, error: 'Bot no encontrado' })
+  if (!ownedBot(req, res)) return
   res.json({ ok: true, logs: manager.getLogs(req.params.id) })
 })
 

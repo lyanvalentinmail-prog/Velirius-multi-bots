@@ -10,19 +10,62 @@
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/dashboard.css" />
+  <!-- Google Identity Services (login con Google) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
-  <!-- ══════════ DASHBOARD (acceso directo, sin login) ══════════ -->
-  <div id="app-view">
+  <!-- ══════════ AUTENTICACIÓN ══════════ -->
+  <div id="auth-view" class="wrap">
+    <section class="card auth-card">
+      <header>
+        <h1 class="title"><a href="#">Velirius Bots</a></h1>
+        <p class="sync">Multi-bots · Baileys · QR + Pairing</p>
+      </header>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="login">Iniciar sesión</button>
+        <button type="button" class="auth-tab" data-mode="register">Registrarse</button>
+      </div>
+
+      <form id="auth-form" class="login-form" autocomplete="on">
+        <label class="field" id="name-field" hidden>
+          <span>Nombre</span>
+          <input id="auth-name" type="text" placeholder="Tu nombre" autocomplete="name" />
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input id="auth-email" type="email" placeholder="tu@correo.com" autocomplete="email" required />
+        </label>
+        <label class="field">
+          <span>Contraseña</span>
+          <input id="auth-password" type="password" placeholder="mínimo 6 caracteres" autocomplete="current-password" required />
+        </label>
+        <button class="run" type="submit" id="auth-submit">Entrar</button>
+        <p id="auth-error" class="error-box" hidden></p>
+      </form>
+
+      <div class="auth-divider"><span>o continúa con</span></div>
+      <div id="google-button" class="google-button"></div>
+      <p id="google-note" class="session-note" hidden></p>
+
+      <button id="auth-server" type="button" class="link-button">Configurar URL del servidor</button>
+      <footer class="footer">Powered by Velirius API</footer>
+    </section>
+  </div>
+
+  <!-- ══════════ DASHBOARD ══════════ -->
+  <div id="app-view" hidden>
     <header class="topbar">
       <div class="brand">
         <span class="brand-mark">𓂃 ࣪ ִֶָ☾.</span>
         <span>Velirius Multi-Bots</span>
       </div>
       <div class="topbar-actions">
+        <span id="user-badge" class="user-badge"></span>
         <span id="server-indicator" class="server-indicator" title="URL del servidor">mismo servidor</span>
         <button id="btn-settings" class="btn ghost small" type="button">Ajustes</button>
+        <button id="btn-logout" class="btn small" type="button">Salir</button>
       </div>
     </header>
 
@@ -59,6 +102,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
