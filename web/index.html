@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velirius Multi-Bots · Dashboard</title>
+  <meta name="description" content="Panel de control multi-bots de WhatsApp con Baileys: QR, pairing code y mensajes de lista." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body>
+
+  <!-- ══════════ ACCESO ══════════ -->
+  <div id="login-view" class="wrap">
+    <section class="card login-card">
+      <header>
+        <h1 class="title"><a href="#">Velirius Bots</a></h1>
+        <p class="sync">Multi-bots · Baileys · QR + Pairing</p>
+      </header>
+
+      <p class="intro">
+        Panel de control para tus sub-bots de WhatsApp.
+        <span class="token-note">Necesitas la URL del servidor y el token secreto.</span>
+      </p>
+
+      <form id="login-form" class="login-form" autocomplete="off">
+        <label class="field">
+          <span>URL del servidor</span>
+          <input id="server-url" type="text" placeholder="https://mi-servidor.onrender.com" />
+        </label>
+        <label class="field">
+          <span>Token del dashboard</span>
+          <input id="server-token" type="password" placeholder="token secreto" />
+        </label>
+        <button class="run" type="submit">Entrar</button>
+        <p id="login-error" class="error-box" hidden></p>
+      </form>
+
+      <div class="follow">
+        Deja la URL vacía si el panel y el servidor están en el mismo sitio.
+      </div>
+      <footer class="footer">Powered by Velirius API</footer>
+    </section>
+  </div>
+
+  <!-- ══════════ DASHBOARD ══════════ -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">𓂃 ࣪ ִֶָ☾.</span>
+        <span>Velirius Multi-Bots</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="server-indicator" class="server-indicator" title="URL del servidor">—</span>
+        <button id="btn-settings" class="btn ghost small" type="button">Ajustes</button>
+        <button id="btn-logout" class="btn small" type="button">Salir</button>
+      </div>
+    </header>
+
+    <main class="page dashboard-page">
+      <section class="stat-strip" id="stat-strip">
+        <div class="stat-item"><span class="stat-label">Estado</span><strong id="stat-status">—</strong></div>
+        <div class="stat-item"><span class="stat-label">Sub-bots</span><strong id="stat-total">0</strong></div>
+        <div class="stat-item"><span class="stat-label">Conectados</span><strong id="stat-online">0</strong></div>
+        <div class="stat-item"><span class="stat-label">Comandos</span><strong id="stat-commands">0</strong></div>
+        <div class="stat-item"><span class="stat-label">Memoria</span><strong id="stat-memory">—</strong></div>
+        <div class="stat-item"><span class="stat-label">Activo hace</span><strong id="stat-uptime">—</strong></div>
+      </section>
+
+      <section class="toolbar">
+        <div>
+          <h2 class="section-title">Sub-bots</h2>
+          <p class="section-sub">Crea instancias independientes de WhatsApp y edita prefijo, banner y más.</p>
+        </div>
+        <div class="toolbar-actions">
+          <button id="btn-refresh" class="btn ghost small" type="button">Actualizar</button>
+          <button id="btn-create" class="btn small" type="button">+ Nuevo sub-bot</button>
+        </div>
+      </section>
+
+      <section id="bots-grid" class="bots-grid"></section>
+      <p id="bots-empty" class="empty-state" hidden>
+        Todavía no hay sub-bots. Crea el primero con <b>+ Nuevo sub-bot</b>.
+      </p>
+    </main>
+  </div>
+
+  <!-- Modales y notificaciones -->
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
