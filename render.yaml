@@ -22,8 +22,10 @@ services:
         value: production
       - key: PORT
         sync: false
-      - key: DASHBOARD_TOKEN
-        generateValue: true
+      # Sin DASHBOARD_TOKEN el dashboard queda abierto sin login.
+      # Para protegerlo, añade esta variable con un valor secreto.
+      # - key: DASHBOARD_TOKEN
+      #   sync: false
       - key: VELIRIUS_API
         value: https://velirius-api-sd8u.vercel.app
       - key: APP_NAME

@@ -2,8 +2,14 @@
 
 const config = require('../config')
 
-/** Protege las rutas del dashboard con el token secreto. */
+/**
+ * Protege las rutas del dashboard con el token secreto.
+ * Si no hay DASHBOARD_TOKEN configurado, la API queda abierta
+ * y el panel entra sin pedir credenciales.
+ */
 function requireToken(req, res, next) {
+  if (!config.AUTH_ENABLED) return next()
+
   const header = req.headers.authorization || ''
   const token = header.startsWith('Bearer ')
     ? header.slice(7).trim()
