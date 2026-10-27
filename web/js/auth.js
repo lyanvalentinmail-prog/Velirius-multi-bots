@@ -7,18 +7,20 @@
 const Auth = {
   mode: 'login',
   config: { googleEnabled: false, googleClientId: null },
+  reachable: false,
 
   async init() {
     this.cacheDom()
     this.bindTabs()
     this.bindForm()
     this.bindServerButton()
-    try {
-      this.config = await Api.authConfig()
-    } catch (_) {
-      this.showError('No se alcanza el servidor. Revisa la URL con el botón de abajo.')
+    await this.checkServer(true)
+    if (this.reachable) {
+      try {
+        this.config = await Api.authConfig()
+      } catch (_) { /* el banner ya informa del problema */ }
+      this.setupGoogle()
     }
-    this.setupGoogle()
   },
 
   cacheDom() {
@@ -32,6 +34,47 @@ const Auth = {
     this.error = $('#auth-error')
     this.googleButton = $('#google-button')
     this.googleNote = $('#google-note')
+    this.statusBox = $('#server-status')
+    this.statusText = $('#server-status-text')
+  },
+
+  // Comprueba que exista un backend en la URL configurada.
+  async checkServer(promptIfDown = false) {
+    this.setStatus('checking', 'Comprobando servidor…')
+    try {
+      await Api.health()
+      this.reachable = true
+      this.setStatus('ok', Settings.base ? `Conectado a ${Settings.base}` : 'Conectado al servidor de este dominio')
+      return true
+    } catch (_) {
+      this.reachable = false
+      this.setStatus(
+        'bad',
+        Settings.base
+          ? `No hay servidor en ${Settings.base} (toca para cambiarlo)`
+          : 'Sin servidor configurado (toca para indicar la URL)'
+      )
+      if (promptIfDown) this.askServerUrl()
+      return false
+    }
+  },
+
+  setStatus(kind, text) {
+    this.statusBox.className = `server-status ${kind}`
+    this.statusText.textContent = text
+  },
+
+  askServerUrl() {
+    const current = Settings.base
+    const value = prompt(
+      'URL del servidor donde corre el bot (Render, VPS o Termux).\n' +
+      'Ejemplos: https://mi-servicio.onrender.com o http://192.168.1.20:3000\n' +
+      'Déjala vacía solo si la web y el servidor comparten dominio.',
+      current
+    )
+    if (value === null) return
+    Settings.base = value.trim()
+    location.reload()
   },
 
   bindTabs() {
@@ -50,6 +93,11 @@ const Auth = {
     this.form.addEventListener('submit', async (ev) => {
       ev.preventDefault()
       this.hideError()
+      if (!this.reachable) {
+        this.showError('No hay servidor conectado. Configura su URL antes de continuar.')
+        this.askServerUrl()
+        return
+      }
       const payload = {
         email: this.emailInput.value.trim(),
         password: this.passwordInput.value
@@ -70,13 +118,8 @@ const Auth = {
   },
 
   bindServerButton() {
-    $('#auth-server').addEventListener('click', () => {
-      const current = Settings.base
-      const value = prompt('URL del servidor (déjala vacía si la web y la API comparten dominio):', current)
-      if (value === null) return
-      Settings.base = value.trim()
-      location.reload()
-    })
+    $('#auth-server').addEventListener('click', () => this.askServerUrl())
+    this.statusBox.addEventListener('click', () => this.askServerUrl())
   },
 
   setupGoogle() {

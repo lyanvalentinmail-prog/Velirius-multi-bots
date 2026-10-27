@@ -49,7 +49,8 @@ const Api = {
     }
 
     let data = null
-    try { data = await res.json() } catch (_) { /* respuesta vacía */ }
+    let parsed = true
+    try { data = await res.json() } catch (_) { parsed = false }
 
     if (res.status === 401 && auth) {
       Settings.token = ''
@@ -58,8 +59,33 @@ const Api = {
       throw new Error(data?.error || 'Sesión expirada, vuelve a iniciar sesión.')
     }
     if (!res.ok) {
+      // Respuesta HTML (por ejemplo la página 404 de Vercel): este
+      // dominio no tiene la API, falta configurar la URL del servidor.
+      if (!parsed) {
+        throw new Error(
+          Settings.base
+            ? `Este dominio no responde como API (HTTP ${res.status}). Revisa la URL del servidor en Ajustes.`
+            : 'Aquí no hay servidor de la API. Pulsa "Configurar URL del servidor" y apunta a tu servicio Render, VPS o Termux.'
+        )
+      }
+      if (res.status === 404) {
+        throw new Error(
+          `${data?.error || 'Ruta no encontrada (404)'}. ` +
+          'Si el servidor está actualizado, comprueba la URL base en "Configurar URL del servidor".'
+        )
+      }
       throw new Error(data?.error || `Petición fallida (HTTP ${res.status})`)
     }
+    return data
+  },
+
+  // Chequeo de conectividad usado en la pantalla de acceso.
+  async health() {
+    const res = await fetch(`${Settings.base}/api/health`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json().catch(() => null)
+    // Un 200 con HTML (p. ej. la SPA de Vercel) no es la API.
+    if (!data || data.ok !== true) throw new Error('La respuesta no pertenece a la API')
     return data
   },
 

@@ -35,6 +35,35 @@
 /* ── Pantalla de autenticación ──────────────────────────────── */
 .auth-card { max-width: 430px; height: auto; min-height: 0; gap: 4px; }
 .login-form { display: grid; gap: 12px; margin-top: 10px; }
+.server-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 2px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 7px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  word-break: break-all;
+  text-align: left;
+}
+.server-status .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.server-status.ok { background: #eafaf0; }
+.server-status.ok .dot { background: #1e8e4a; }
+.server-status.bad { background: #fdecea; border-color: #b3261e; color: #8c1d18; }
+.server-status.bad .dot { background: #b3261e; }
+.server-status.checking .dot { animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
