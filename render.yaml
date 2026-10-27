@@ -1,0 +1,38 @@
+# ───────────────────────────────────────────────────────────────
+# Render Blueprint · Velirius Multi-Bots
+# Despliega el servidor Express + Baileys y el dashboard juntos.
+# Render → New → Blueprint → apunta a este repositorio.
+# Docs: https://render.com/docs/blueprint-spec
+# ───────────────────────────────────────────────────────────────
+services:
+  - type: web
+    name: velirius-multi-bots
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm install --prefix server
+    startCommand: npm start --prefix server
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20.11.1"
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        sync: false
+      - key: DASHBOARD_TOKEN
+        generateValue: true
+      - key: VELIRIUS_API
+        value: https://velirius-api-sd8u.vercel.app
+      - key: APP_NAME
+        value: Velirius Multi-Bots
+    # El disco persistente guarda las sesiones de WhatsApp entre
+    # reinicios. Requiere un plan de pago (Starter o superior):
+    # en el plan free, borra este bloque y vuelve a escanear el
+    # QR / pedir pairing code cada vez que se redepliegue.
+    disk:
+      name: velirius-data
+      mountPath: /opt/render/project/src/server/data
+      sizeGB: 1

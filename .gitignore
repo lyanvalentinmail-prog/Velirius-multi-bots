@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+server/node_modules/
+web/node_modules/
+
+# Datos de los bots (sesiones de Baileys, configuración y token)
+server/data/*
+!server/data/auth
+server/data/auth/*
+!server/data/auth/.gitkeep
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Vercel / herramientas
+.vercel
+.idea/
+.vscode/
+*.tmp
+.DS_Store
+npm-debug.log*

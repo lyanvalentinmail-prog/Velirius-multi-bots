@@ -1,0 +1,26 @@
+{
+  "name": "velirius-multi-bots",
+  "version": "1.0.0",
+  "description": "Multi-bots de WhatsApp con Baileys (QR + pairing code, mensajes de lista) y dashboard web. Compatible con Termux, Vercel y Render.",
+  "main": "server/index.js",
+  "scripts": {
+    "install:server": "npm install --prefix server",
+    "start": "npm start --prefix server",
+    "dev": "npm run dev --prefix server",
+    "termux": "bash termux/start.sh"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "multi-bot",
+    "termux",
+    "velirius",
+    "dashboard",
+    "pairing-code"
+  ],
+  "author": "Lyan (Velirius)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
