@@ -14,6 +14,7 @@ const Auth = {
     this.bindTabs()
     this.bindForm()
     this.bindServerButton()
+    // Reintenta solo durante el arranque en frío (plan free de Render).
     await this.checkServer(true)
     if (this.reachable) {
       try {
@@ -21,6 +22,10 @@ const Auth = {
       } catch (_) { /* el banner ya informa del problema */ }
       this.setupGoogle()
     }
+    // Si el servicio sigue dormido o se cae, vuelve a comprobar solo.
+    setInterval(() => {
+      if (!this.reachable) this.checkServer(false)
+    }, 8000)
   },
 
   cacheDom() {
@@ -39,24 +44,44 @@ const Auth = {
   },
 
   // Comprueba que exista un backend en la URL configurada.
-  async checkServer(promptIfDown = false) {
-    this.setStatus('checking', 'Comprobando servidor…')
-    try {
-      await Api.health()
-      this.reachable = true
-      this.setStatus('ok', Settings.base ? `Conectado a ${Settings.base}` : 'Conectado al servidor de este dominio')
-      return true
-    } catch (_) {
-      this.reachable = false
+  // En el arranque inicial reintenta varias veces porque el plan
+  // gratuito de Render puede tardar ~1 min en despertar.
+  async checkServer(initial = false) {
+    const attempts = initial ? 6 : 1
+    for (let i = 0; i < attempts; i++) {
       this.setStatus(
-        'bad',
-        Settings.base
-          ? `No hay servidor en ${Settings.base} (toca para cambiarlo)`
-          : 'Sin servidor configurado (toca para indicar la URL)'
+        'checking',
+        i === 0
+          ? 'Conectando con el servidor…'
+          : `El servidor está arrancando… (intento ${i + 1}/${attempts})`
       )
-      if (promptIfDown) this.askServerUrl()
-      return false
+      try {
+        await Api.health()
+        this.reachable = true
+        this.setStatus(
+          'ok',
+          Settings.base
+            ? `Conectado a ${Settings.base}`
+            : 'Conectado · mismo dominio, sin configuración'
+        )
+        // Con mismo origen no hace falta enseñar el botón de URL.
+        const link = $('#auth-server')
+        if (link) link.hidden = !Settings.base
+        return true
+      } catch (_) {
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, 9000))
+      }
     }
+    this.reachable = false
+    const link = $('#auth-server')
+    if (link) link.hidden = false
+    this.setStatus(
+      'bad',
+      Settings.base
+        ? `No hay servidor en ${Settings.base} (toca para cambiarlo)`
+        : 'Servidor no disponible (toca para indicar su URL)'
+    )
+    return false
   },
 
   setStatus(kind, text) {
@@ -94,8 +119,13 @@ const Auth = {
       ev.preventDefault()
       this.hideError()
       if (!this.reachable) {
-        this.showError('No hay servidor conectado. Configura su URL antes de continuar.')
-        this.askServerUrl()
+        if (Settings.base) {
+          this.showError('No hay servidor en la URL configurada. Revísala para continuar.')
+          this.askServerUrl()
+        } else {
+          this.showError('El servidor todavía no responde. Si usas Render en plan gratuito, espera un minuto a que arranque; el estado se actualiza solo.')
+          this.checkServer(false)
+        }
         return
       }
       const payload = {

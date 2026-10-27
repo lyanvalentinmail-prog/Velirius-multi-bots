@@ -81,7 +81,9 @@ El instalador agrega `python`, `make`, `clang` y `libsodium` para que las depend
 
 ---
 
-## ☁️ Render (Blueprint — servidor + dashboard juntos)
+## ☁️ Render — opción recomendada (un solo despliegue, cero configuración)
+
+Este es el modo más simple: **el mismo servicio sirve el dashboard y la API del bot en el mismo dominio**. La web detecta el servidor automáticamente, nunca tienes que escribir una URL y las llamadas van por rutas relativas (`/api/...`).
 
 1. Sube el proyecto a GitHub.
 2. En Render: **New → Blueprint** y selecciona el repositorio.
@@ -89,7 +91,9 @@ El instalador agrega `python`, `make`, `clang` y `libsodium` para que las depend
    - `AUTH_SECRET` se genera automáticamente (firma los tokens de sesión).
    - Añade `GOOGLE_CLIENT_ID` en *Environment* para activar el botón de Google (ver más abajo). Es opcional: sin él solo está el registro por email.
    - El disco persistente (`velirius-data`, 1 GB) guarda usuarios, configuración y sesiones de WhatsApp. El disco requiere un plan de pago: en el plan **free**, borra el bloque `disk:` de `render.yaml` y volverás a vincular WhatsApp en cada redespliegue (las cuentas de usuario también se reinician sin disco).
-4. Al terminar, abre la URL del servicio (`https://tu-servicio.onrender.com`): ahí están la API y el panel. Regístrate la primera vez para entrar.
+4. Abre la URL del servicio (`https://tu-servicio.onrender.com`): verás el banner verde *«Conectado · mismo dominio, sin configuración»*. Regístrate la primera vez y listo.
+
+> **Arranque en frío (plan free):** si el servicio estaba inactivo, la primera carga tarda hasta ~1 minuto. La pantalla de acceso reintenta sola varias veces mostrando *«El servidor está arrancando…»*; no necesitas tocar nada.
 
 Comandos equivalentes por si configuras el servicio a mano:
 
@@ -99,19 +103,19 @@ Comandos equivalentes por si configuras el servicio a mano:
 
 ---
 
-## ▲ Vercel (solo la web)
+## ▲ Vercel — opcional, solo la web (requiere un servidor aparte)
 
-Vercel no mantiene conexiones WebSocket persistentes, así que ahí se despliega **únicamente el dashboard**; el servidor Baileys sigue corriendo en Render, un VPS o Termux.
+Vercel no mantiene conexiones WebSocket persistentes, por lo que **no puede ejecutar Baileys**. Ahí se despliega únicamente el dashboard estático; el bot sigue necesitando un servidor en Render, un VPS o Termux. Por eso, si puedes, usa el despliegue único de Render y evita configurar nada.
 
 1. Importa el repositorio en Vercel (la raíz contiene `vercel.json` con build estático `@vercel/static` sobre `web/`).
 2. Despliega sin comando de build.
-3. Abre la web. Como está en otro dominio, pulsa **Configurar URL del servidor** en la pantalla de acceso (o el botón *Ajustes* una vez dentro) y pon la URL de tu servidor Render/VPS/Termux. Inicia sesión con tu cuenta o Google normalmente.
+3. Al abrir la web verás el banner rojo de servidor: tócalo (o usa *Configurar URL del servidor*) y pon la URL de tu servidor Render/VPS/Termux. Esa URL se guarda en el navegador y el banner pasa a verde; entonces inicia sesión normalmente.
 
 ---
 
 ## 🖥️ Uso del dashboard
 
-1. **Acceso**: regístrate con email/contraseña (mínimo 6 caracteres) o usa *Entrar con Google*. La sesión se guarda en el navegador como token firmado; cada cuenta ve solo sus sub-bots. Si la web y la API están en dominios distintos (web en Vercel, servidor en Render), configura antes la URL del servidor con el botón de la pantalla de acceso o en *Ajustes*.
+1. **Acceso**: regístrate con email/contraseña (mínimo 6 caracteres) o usa *Entrar con Google*. La sesión se guarda en el navegador como token firmado; cada cuenta ve solo sus sub-bots. En el despliegue único de Render (o en local/Termux) no se configura nada: el panel y la API comparten dominio y el banner de estado sale verde. El botón *Configurar URL del servidor* solo aparece si despliegas la web por separado (p. ej. Vercel).
 2. **Nuevo sub-bot**: nombre, prefijo (`.`, `#`, `!`…), modo público/privado y estilo de menú. Al crearlo se abre directo la pestaña de vinculación.
 3. **Vincular WhatsApp** (pestaña *Vincular*): elige entre dos tarjetas:
    - **Código QR**: pulsa *Iniciar vinculación*, espera unos segundos y escanea el código con WhatsApp → *Dispositivos vinculados → Vincular dispositivo*. El QR se refresca solo en el panel.
