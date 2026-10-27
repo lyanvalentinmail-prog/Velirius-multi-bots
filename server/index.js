@@ -20,11 +20,15 @@ app.get('/api/health', (req, res) => {
 })
 
 app.post('/api/login', (req, res) => {
+  // Sin token configurado, el acceso está abierto.
+  if (!config.AUTH_ENABLED) {
+    return res.json({ ok: true, appName: config.APP_NAME, authEnabled: false })
+  }
   const token = (req.body?.token || '').trim()
   if (token !== config.DASHBOARD_TOKEN) {
-    return res.status(401).json({ ok: false, error: 'Token incorrecto' })
+    return res.status(401).json({ ok: false, error: 'Token incorrecto', authEnabled: true })
   }
-  res.json({ ok: true, appName: config.APP_NAME })
+  res.json({ ok: true, appName: config.APP_NAME, authEnabled: true })
 })
 
 // Rutas protegidas del dashboard.
@@ -52,8 +56,9 @@ app.listen(config.PORT, config.HOST, async () => {
     `  ${config.APP_NAME}`,
     `  Servidor:  http://localhost:${config.PORT}`,
     `  API:       ${config.VELIRIUS_API}`,
-    `  Token del dashboard: ${config.DASHBOARD_TOKEN}`,
-    '  (guárdalo: lo pide la pantalla de acceso)',
+    config.AUTH_ENABLED
+      ? `  Token del dashboard: ${config.DASHBOARD_TOKEN}`
+      : '  Acceso del dashboard: ABIERTO (sin token)',
     '𓂃 ࣪ ִֶָ☾. ───────────────────────────────────────',
     ''
   ].join('\n')

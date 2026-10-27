@@ -26,7 +26,7 @@ Velirius-multi-bots/
 │       ├── store.js         # Persistencia JSON (sub-bots)
 │       ├── commands/        # Módulos de comandos (78)
 │       ├── routes/          # Rutas REST del dashboard
-│       └── middleware/      # Auth por token
+│       └── middleware/      # Auth opcional por token
 ├── web/                     # Dashboard estático (Vercel / servido por Express)
 │   ├── index.html
 │   ├── css/style.css        # El style.css original de Velirius (Drive)
@@ -48,14 +48,14 @@ Requisitos: **Node.js 18+** (recomendado 20/22).
 # 1. Instalar dependencias del servidor
 npm run install:server
 
-# 2. Configurar variables (opcional; sin token se genera uno)
+# 2. Configurar variables (opcional)
 cp .env.example .env
 
 # 3. Arrancar
 npm start
 ```
 
-En la consola aparecerá el **token del dashboard**. Abre `http://localhost:3000`, inicia sesión con ese token y crea tu primer sub-bot.
+Abre `http://localhost:3000`: **entras directo al dashboard sin login ni token**. El acceso solo se protege si defines la variable `DASHBOARD_TOKEN`; entonces el token se escribe en el botón *Ajustes* de la web.
 
 ---
 
@@ -85,9 +85,9 @@ El instalador agrega `python`, `make`, `clang` y `libsodium` para que las depend
 1. Sube el proyecto a GitHub.
 2. En Render: **New → Blueprint** y selecciona el repositorio.
 3. Render detecta `render.yaml` y crea el servicio `velirius-multi-bots`:
-   - `DASHBOARD_TOKEN` se genera automáticamente.
+   - El dashboard queda **abierto sin token**. Para protegerlo, añade una variable `DASHBOARD_TOKEN` con un valor secreto (el `render.yaml` la lleva comentada).
    - El disco persistente (`velirius-data`, 1 GB) guarda las sesiones de WhatsApp. El disco requiere un plan de pago: en el plan **free**, borra el bloque `disk:` de `render.yaml` y vuelve a vincular el WhatsApp en cada redespliegue.
-4. Al terminar, abre la URL del servicio (`https://tu-servicio.onrender.com`): ahí están la API y el panel.
+4. Al terminar, abre la URL del servicio (`https://tu-servicio.onrender.com`): ahí están la API y el panel, con acceso directo.
 
 Comandos equivalentes por si configuras el servicio a mano:
 
@@ -103,13 +103,13 @@ Vercel no mantiene conexiones WebSocket persistentes, así que ahí se despliega
 
 1. Importa el repositorio en Vercel (la raíz ya contiene `vercel.json` con `outputDirectory: web`).
 2. Despliega sin comando de build.
-3. Abre la web, en *Ajustes* escribe la **URL de tu servidor** y el **token** del dashboard.
+3. Abre la web y entra al panel. Como la web está en otro dominio, en *Ajustes* escribe la **URL de tu servidor** (campo opcional: vacío = rutas relativas). El token solo hace falta si definiste `DASHBOARD_TOKEN` en el servidor.
 
 ---
 
 ## 🖥️ Uso del dashboard
 
-1. **Entrar**: URL del servidor (vacía si web y API comparten dominio) + token.
+1. **Entrar**: acceso directo, sin login. Si la web y la API están en dominios distintos (web en Vercel, servidor en Render), configura la URL del servidor en *Ajustes*; el token es opcional y solo se usa si el servidor exige `DASHBOARD_TOKEN`.
 2. **Nuevo sub-bot**: nombre, prefijo (`.`, `#`, `!`…), modo público/privado y estilo de menú.
 3. **Vincular WhatsApp** (pestaña *Sesión*):
    - **QR**: se muestra el código en el panel y se refresca solo.
@@ -121,7 +121,7 @@ La API del panel:
 
 | Método | Ruta | Descripción |
 | --- | --- | --- |
-| `POST` | `/api/login` | Validar token |
+| `POST` | `/api/login` | Estado de auth (valida token solo si el servidor lo exige) |
 | `GET` | `/api/bots` | Listar sub-bots |
 | `POST` | `/api/bots` | Crear sub-bot |
 | `PATCH` | `/api/bots/:id` | Editar prefijo, banner, modo… |
@@ -206,7 +206,7 @@ Los mensajes de lista usan `interactiveMessage`/`nativeFlowMessage` de Baileys y
 | Variable | Por defecto | Descripción |
 | --- | --- | --- |
 | `PORT` | `3000` | Puerto HTTP (Render lo inyecta) |
-| `DASHBOARD_TOKEN` | autogenerado en `server/data/.token` | Contraseña del panel |
+| `DASHBOARD_TOKEN` | vacío (panel abierto) | Si se define, exige ese token en `/api` y en *Ajustes* de la web |
 | `VELIRIUS_API` | `https://velirius-api-sd8u.vercel.app` | Base de la API |
 | `APP_NAME` | `Velirius Multi-Bots` | Nombre mostrado |
 

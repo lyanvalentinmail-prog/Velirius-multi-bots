@@ -1,6 +1,12 @@
 'use strict'
 
-/* Almacenamiento local de la URL del servidor y el token. */
+/*
+ * Configuración opcional de conexión.
+ * Por defecto base='' (rutas relativas): la web y la API comparten
+ * origen, así que no hay que escribir ninguna URL. El token también
+ * es opcional y solo hace falta si el servidor define DASHBOARD_TOKEN.
+ * Ambos valores se pueden ajustar desde el botón "Ajustes".
+ */
 const Settings = {
   get base() {
     return (localStorage.getItem('velirius.base') || '').replace(/\/+$/, '')
@@ -15,20 +21,23 @@ const Settings = {
     localStorage.setItem('velirius.token', value || '')
   },
   get ready() {
-    return Boolean(this.token)
+    return true
   }
 }
 
 const Api = {
   async request(path, options = {}) {
     const { method = 'GET', body } = options
+    const headers = { 'Content-Type': 'application/json' }
+    // Solo enviamos credenciales si el usuario guardó un token.
+    if (Settings.token) {
+      headers.Authorization = `Bearer ${Settings.token}`
+      headers['X-Dashboard-Token'] = Settings.token
+    }
+
     const res = await fetch(`${Settings.base}/api${path}`, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${Settings.token}`,
-        'X-Dashboard-Token': Settings.token
-      },
+      headers,
       body: body ? JSON.stringify(body) : undefined
     })
 
@@ -36,9 +45,7 @@ const Api = {
     try { data = await res.json() } catch (_) { /* respuesta vacía */ }
 
     if (res.status === 401) {
-      Settings.token = ''
-      window.location.reload()
-      throw new Error('Sesión expirada: vuelve a entrar.')
+      throw new Error('El servidor exige token. Ponlo en Ajustes (variable DASHBOARD_TOKEN).')
     }
     if (!res.ok) {
       throw new Error(data?.error || `Petición fallida (HTTP ${res.status})`)

@@ -53,46 +53,16 @@ function statusPill(session) {
 }
 
 /* ── Estado de la aplicación ────────────────────────────────── */
-const state = { bots: [], meta: null, modalTimer: null, gridTimer: null }
+const state = { bots: [], meta: null, modalTimer: null, gridTimer: null, serverOk: false, errorShown: false }
 
-/* ── Login ──────────────────────────────────────────────────── */
-function showLogin() {
-  $('#login-view').hidden = false
-  $('#app-view').hidden = true
-  $('#server-url').value = Settings.base
-  $('#server-token').value = Settings.token
-}
-
+/* ── Arranque directo, sin pantalla de acceso ───────────────── */
 function showApp() {
-  $('#login-view').hidden = true
   $('#app-view').hidden = false
   $('#server-indicator').textContent = Settings.base || 'mismo servidor'
   loadAll()
   clearInterval(state.gridTimer)
   state.gridTimer = setInterval(loadAll, 6000)
 }
-
-$('#login-form').addEventListener('submit', async (ev) => {
-  ev.preventDefault()
-  const error = $('#login-error')
-  error.hidden = true
-  const base = $('#server-url').value.trim()
-  const token = $('#server-token').value.trim()
-  try {
-    await Api.login(base, token)
-    showApp()
-  } catch (err) {
-    error.textContent = err.message
-    error.hidden = false
-  }
-})
-
-$('#btn-logout').addEventListener('click', () => {
-  Settings.token = ''
-  clearInterval(state.gridTimer)
-  closeModal()
-  showLogin()
-})
 
 $('#btn-settings').addEventListener('click', openSettings)
 $('#btn-refresh').addEventListener('click', loadAll)
@@ -104,10 +74,18 @@ async function loadAll() {
     const [botsRes, metaRes] = await Promise.all([Api.bots(), Api.meta()])
     state.bots = botsRes.bots
     state.meta = metaRes
+    state.serverOk = true
     renderStats()
     renderBots()
   } catch (err) {
-    toast(err.message, true)
+    // Sin servidor disponible se refleja en la barra de estado;
+    // el toast solo aparece una vez para no repetirse cada 6 s.
+    state.serverOk = false
+    $('#stat-status').textContent = 'sin servidor'
+    if (!state.errorShown) {
+      state.errorShown = true
+      toast(err.message, true)
+    }
   }
 }
 
@@ -115,6 +93,7 @@ function renderStats() {
   const m = state.meta
   if (!m) return
   const online = state.bots.filter((b) => b.session?.status === 'conectado').length
+  state.errorShown = false
   $('#stat-status').textContent = 'en línea'
   $('#stat-total').textContent = String(state.bots.length)
   $('#stat-online').textContent = String(online)
@@ -494,11 +473,12 @@ function openSettings() {
   })
 
   openModal([
-    modalHead('Ajustes de conexión'),
+    modalHead('Ajustes de conexión (opcional)'),
     h('form', { class: 'form-grid', onsubmit: (ev) => ev.preventDefault() },
       h('label', { class: 'field full' }, h('span', {}, 'URL del servidor'), base,
-        h('span', { class: 'hint' }, 'Vacío = mismo origen que esta web. En Vercel apunta aquí a tu servidor de Render, VPS o Termux.')),
-      h('label', { class: 'field full' }, h('span', {}, 'Token del dashboard'), token),
+        h('span', { class: 'hint' }, 'Déjalo vacío para usar rutas relativas (web y API en el mismo sitio). Solo es necesario si esta web está en Vercel y el servidor en Render, VPS o Termux.')),
+      h('label', { class: 'field full' }, h('span', {}, 'Token del dashboard'), token,
+        h('span', { class: 'hint' }, 'Opcional: se deja vacío salvo que el servidor tenga DASHBOARD_TOKEN definido.')),
       h('div', { class: 'modal-foot full' },
         h('button', { class: 'btn ghost', type: 'button', onclick: closeModal }, 'Cancelar'),
         save
@@ -507,6 +487,5 @@ function openSettings() {
   ])
 }
 
-/* ── Arranque ───────────────────────────────────────────────── */
-if (Settings.ready) showApp()
-else showLogin()
+/* ── Arranque: entra directo al dashboard, sin login ────────── */
+showApp()

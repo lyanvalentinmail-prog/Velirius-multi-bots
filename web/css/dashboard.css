@@ -4,8 +4,6 @@
    bordes negros, sombra dura y tipografía monoespaciada.
    ───────────────────────────────────────────────────────────── */
 
-.login-card { max-width: 420px; height: auto; min-height: 0; }
-.login-form { display: grid; gap: 12px; margin-top: 8px; overflow-y: auto; }
 .field { display: grid; gap: 5px; font-size: 10.5px; letter-spacing: 0.8px; text-transform: uppercase; }
 .field input, .field select, .field textarea {
   width: 100%;

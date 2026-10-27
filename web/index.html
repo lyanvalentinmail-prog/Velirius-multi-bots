@@ -13,50 +13,16 @@
 </head>
 <body>
 
-  <!-- ══════════ ACCESO ══════════ -->
-  <div id="login-view" class="wrap">
-    <section class="card login-card">
-      <header>
-        <h1 class="title"><a href="#">Velirius Bots</a></h1>
-        <p class="sync">Multi-bots · Baileys · QR + Pairing</p>
-      </header>
-
-      <p class="intro">
-        Panel de control para tus sub-bots de WhatsApp.
-        <span class="token-note">Necesitas la URL del servidor y el token secreto.</span>
-      </p>
-
-      <form id="login-form" class="login-form" autocomplete="off">
-        <label class="field">
-          <span>URL del servidor</span>
-          <input id="server-url" type="text" placeholder="https://mi-servidor.onrender.com" />
-        </label>
-        <label class="field">
-          <span>Token del dashboard</span>
-          <input id="server-token" type="password" placeholder="token secreto" />
-        </label>
-        <button class="run" type="submit">Entrar</button>
-        <p id="login-error" class="error-box" hidden></p>
-      </form>
-
-      <div class="follow">
-        Deja la URL vacía si el panel y el servidor están en el mismo sitio.
-      </div>
-      <footer class="footer">Powered by Velirius API</footer>
-    </section>
-  </div>
-
-  <!-- ══════════ DASHBOARD ══════════ -->
-  <div id="app-view" hidden>
+  <!-- ══════════ DASHBOARD (acceso directo, sin login) ══════════ -->
+  <div id="app-view">
     <header class="topbar">
       <div class="brand">
         <span class="brand-mark">𓂃 ࣪ ִֶָ☾.</span>
         <span>Velirius Multi-Bots</span>
       </div>
       <div class="topbar-actions">
-        <span id="server-indicator" class="server-indicator" title="URL del servidor">—</span>
+        <span id="server-indicator" class="server-indicator" title="URL del servidor">mismo servidor</span>
         <button id="btn-settings" class="btn ghost small" type="button">Ajustes</button>
-        <button id="btn-logout" class="btn small" type="button">Salir</button>
       </div>
     </header>
 

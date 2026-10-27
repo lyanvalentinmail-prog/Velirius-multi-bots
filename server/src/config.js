@@ -2,7 +2,6 @@
 
 const path = require('path')
 const fs = require('fs')
-const crypto = require('crypto')
 
 // Carga el .env de la raíz del proyecto si existe.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') })
@@ -15,25 +14,20 @@ const AUTH_DIR = path.join(DATA_DIR, 'auth')
 
 fs.mkdirSync(AUTH_DIR, { recursive: true })
 
-// Si no hay token en el entorno, se genera uno persistente en
-// data/.token para no cambiarlo en cada reinicio (útil en Termux).
+// El token es opcional: si DASHBOARD_TOKEN no está definido (o está
+// vacío), el dashboard y la API quedan abiertos sin contraseña.
+// Si defines la variable, todas las rutas /api pasan a exigirla.
 function resolveToken() {
-  if (process.env.DASHBOARD_TOKEN && process.env.DASHBOARD_TOKEN.trim()) {
-    return process.env.DASHBOARD_TOKEN.trim()
-  }
-  const tokenFile = path.join(DATA_DIR, '.token')
-  try {
-    if (fs.existsSync(tokenFile)) return fs.readFileSync(tokenFile, 'utf8').trim()
-  } catch (_) { /* se regenera */ }
-  const token = crypto.randomBytes(10).toString('hex')
-  try { fs.writeFileSync(tokenFile, token, { mode: 0o600 }) } catch (_) { /* sin permisos */ }
-  return token
+  return (process.env.DASHBOARD_TOKEN || '').trim()
 }
+
+const DASHBOARD_TOKEN = resolveToken()
 
 module.exports = {
   PORT: Number(process.env.PORT) || 3000,
   HOST: process.env.HOST || '0.0.0.0',
-  DASHBOARD_TOKEN: resolveToken(),
+  DASHBOARD_TOKEN,
+  AUTH_ENABLED: Boolean(DASHBOARD_TOKEN),
   VELIRIUS_API: (process.env.VELIRIUS_API || 'https://velirius-api-sd8u.vercel.app').replace(/\/+$/, ''),
   APP_NAME: process.env.APP_NAME || 'Velirius Multi-Bots',
   DATA_DIR,
