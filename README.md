@@ -25,9 +25,7 @@ Velirius-multi-bots/
 │       ├── velirius.js      # Cliente de la Velirius API
 │       ├── store.js         # Persistencia JSON (sub-bots)
 │       ├── commands/        # Módulos de comandos (78)
-│       ├── routes/          # Rutas REST del dashboard
-│       ├── auth/            # Usuarios, tokens HMAC y verificación Google
-│       └── middleware/      # Protección de rutas por sesión
+│       └── routes/          # Rutas REST del dashboard (acceso directo)
 ├── web/                     # Dashboard estático (Vercel / servido por Express)
 │   ├── index.html
 │   ├── css/style.css        # El style.css original de Velirius (Drive)
@@ -56,7 +54,7 @@ cp .env.example .env
 npm start
 ```
 
-Abre `http://localhost:3000`. La primera vez verás la pantalla de acceso: puedes **registrarte con email y contraseña**, **iniciar sesión** con una cuenta existente o usar **Entrar con Google** (si configuraste `GOOGLE_CLIENT_ID`). Cada usuario gestiona únicamente sus propios sub-bots.
+Abre `http://localhost:3000`: entras **directo al dashboard, sin login ni registro**. La web y la API comparten dominio y se comunican por rutas relativas, así que no hay que configurar ninguna URL.
 
 ---
 
@@ -88,10 +86,8 @@ Este es el modo más simple: **el mismo servicio sirve el dashboard y la API del
 1. Sube el proyecto a GitHub.
 2. En Render: **New → Blueprint** y selecciona el repositorio.
 3. Render detecta `render.yaml` y crea el servicio `velirius-multi-bots`:
-   - `AUTH_SECRET` se genera automáticamente (firma los tokens de sesión).
-   - Añade `GOOGLE_CLIENT_ID` en *Environment* para activar el botón de Google (ver más abajo). Es opcional: sin él solo está el registro por email.
-   - El disco persistente (`velirius-data`, 1 GB) guarda usuarios, configuración y sesiones de WhatsApp. El disco requiere un plan de pago: en el plan **free**, borra el bloque `disk:` de `render.yaml` y volverás a vincular WhatsApp en cada redespliegue (las cuentas de usuario también se reinician sin disco).
-4. Abre la URL del servicio (`https://tu-servicio.onrender.com`): verás el banner verde *«Conectado · mismo dominio, sin configuración»*. Regístrate la primera vez y listo.
+   - El disco persistente (`velirius-data`, 1 GB) guarda la configuración y las sesiones de WhatsApp. El disco requiere un plan de pago: en el plan **free**, borra el bloque `disk:` de `render.yaml` y volverás a vincular WhatsApp en cada redespliegue.
+4. Abre la URL del servicio (`https://tu-servicio.onrender.com`): el dashboard carga directo, sin login ni configuración.
 
 > **Arranque en frío (plan free):** si el servicio estaba inactivo, la primera carga tarda hasta ~1 minuto. La pantalla de acceso reintenta sola varias veces mostrando *«El servidor está arrancando…»*; no necesitas tocar nada.
 
@@ -103,19 +99,15 @@ Comandos equivalentes por si configuras el servicio a mano:
 
 ---
 
-## ▲ Vercel — opcional, solo la web (requiere un servidor aparte)
+## ▲ Vercel — no recomendado para este proyecto
 
-Vercel no mantiene conexiones WebSocket persistentes, por lo que **no puede ejecutar Baileys**. Ahí se despliega únicamente el dashboard estático; el bot sigue necesitando un servidor en Render, un VPS o Termux. Por eso, si puedes, usa el despliegue único de Render y evita configurar nada.
-
-1. Importa el repositorio en Vercel (la raíz contiene `vercel.json` con build estático `@vercel/static` sobre `web/`).
-2. Despliega sin comando de build.
-3. Al abrir la web verás el banner rojo de servidor: tócalo (o usa *Configurar URL del servidor*) y pon la URL de tu servidor Render/VPS/Termux. Esa URL se guarda en el navegador y el banner pasa a verde; entonces inicia sesión normalmente.
+Vercel no mantiene conexiones WebSocket persistentes, por lo que **no puede ejecutar Baileys**. Además, este dashboard usa rutas relativas (`/api/...`) a propósito para no requerir configuración: una copia estática aislada en Vercel no tendría dónde mandar esas peticiones. La forma soportada es el **despliegue único de Render** (o correrlo en un VPS/Termux), donde la web y la API comparten dominio. El `vercel.json` se conserva únicamente como referencia de build estático.
 
 ---
 
 ## 🖥️ Uso del dashboard
 
-1. **Acceso**: regístrate con email/contraseña (mínimo 6 caracteres) o usa *Entrar con Google*. La sesión se guarda en el navegador como token firmado; cada cuenta ve solo sus sub-bots. En el despliegue único de Render (o en local/Termux) no se configura nada: el panel y la API comparten dominio y el banner de estado sale verde. El botón *Configurar URL del servidor* solo aparece si despliegas la web por separado (p. ej. Vercel).
+1. **Acceso**: directo, sin login ni registro. El panel y la API comparten dominio (despliegue único de Render, VPS, Termux o localhost), así que no se configura ninguna URL. En la barra superior, el indicador muestra *servidor en línea* o *servidor no disponible*.
 2. **Nuevo sub-bot**: nombre, prefijo (`.`, `#`, `!`…), modo público/privado y estilo de menú. Al crearlo se abre directo la pestaña de vinculación.
 3. **Vincular WhatsApp** (pestaña *Vincular*): elige entre dos tarjetas:
    - **Código QR**: pulsa *Iniciar vinculación*, espera unos segundos y escanea el código con WhatsApp → *Dispositivos vinculados → Vincular dispositivo*. El QR se refresca solo en el panel.
@@ -124,23 +116,13 @@ Vercel no mantiene conexiones WebSocket persistentes, por lo que **no puede ejec
 4. **Editar** (pestaña *Configuración*): nombre, prefijo, **banner**, URL de imagen del banner, propietarios, modo, estilo de menú, bienvenida, autolectura y activación.
 5. **Registros**: logs en vivo de la sesión (conexión, QR, pairing, errores).
 
-### Configurar "Entrar con Google"
-
-1. Entra a [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → *Credentials* → *Create Credentials* → **OAuth client ID** → tipo **Web application**.
-2. En *Authorized JavaScript origins* añade el origen de tu web (ej. `https://velirius-multi-bots.vercel.app` y `https://tu-servicio.onrender.com`; en local `http://localhost:3000`).
-3. Copia el **Client ID** (termina en `.apps.googleusercontent.com`). No necesitas el client secret: el frontend usa Google Identity Services y el servidor verifica el ID token con las llaves públicas de Google.
-4. Define la variable `GOOGLE_CLIENT_ID` en el servidor (`.env` local o pestaña *Environment* en Render) y reinicia. El botón aparece solo; sin la variable se muestra un aviso de que está desactivado.
-
-La API del panel (las rutas de bots exigen `Authorization: Bearer <token>` salvo que se use `DASHBOARD_TOKEN` de servicio):
+La API del panel es de acceso directo (sin token):
 
 | Método | Ruta | Descripción |
 | --- | --- | --- |
-| `GET` | `/api/auth/config` | Config pública: si Google está activo y su Client ID |
-| `POST` | `/api/auth/register` | Crea cuenta con email/contraseña y devuelve token |
-| `POST` | `/api/auth/login` | Inicia sesión con email/contraseña |
-| `POST` | `/api/auth/google` | Verifica el ID token de Google y devuelve token |
-| `GET` | `/api/auth/me` | Usuario de la sesión actual |
-| `GET` | `/api/bots` | Listar sub-bots (solo los del usuario) |
+| `GET` | `/api/health` | Estado del servicio |
+| `GET` | `/api/meta` | Metadatos, catálogo y memoria |
+| `GET` | `/api/bots` | Listar sub-bots |
 | `POST` | `/api/bots` | Crear sub-bot |
 | `PATCH` | `/api/bots/:id` | Editar prefijo, banner, modo… |
 | `DELETE` | `/api/bots/:id` | Eliminar sub-bot y su sesión |
@@ -224,10 +206,6 @@ Los mensajes de lista usan `interactiveMessage`/`nativeFlowMessage` de Baileys y
 | Variable | Por defecto | Descripción |
 | --- | --- | --- |
 | `PORT` | `3000` | Puerto HTTP (Render lo inyecta) |
-| `AUTH_SECRET` | autogenerado en `server/data/.jwt-secret` | Secreto HMAC que firma los tokens de sesión |
-| `TOKEN_TTL_DAYS` | `30` | Días de validez de cada token de sesión |
-| `GOOGLE_CLIENT_ID` | vacío | Client ID OAuth de Google; vacío desactiva el botón *Entrar con Google* |
-| `DASHBOARD_TOKEN` | vacío | Token de servicio opcional: si se define, se acepta como Bearer además de las cuentas |
 | `VELIRIUS_API` | `https://velirius-api-sd8u.vercel.app` | Base de la API |
 | `APP_NAME` | `Velirius Multi-Bots` | Nombre mostrado |
 

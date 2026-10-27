@@ -23,7 +23,7 @@ npm install --prefix server
 # 4. Configuración inicial.
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "Se creó el archivo .env (puedes editar DASHBOARD_TOKEN)."
+  echo "Se creó el archivo .env (el panel es de acceso directo, sin login)."
 fi
 
 mkdir -p server/data/auth

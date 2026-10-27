@@ -67,35 +67,14 @@ function statusPill(session) {
 /* ── Estado de la aplicación ────────────────────────────────── */
 const state = { bots: [], meta: null, modalTimer: null, gridTimer: null, serverOk: false, errorShown: false }
 
-/* ── Vistas: autenticación / dashboard ──────────────────────── */
-function showAuth() {
-  clearInterval(state.gridTimer)
-  closeModal()
-  $('#app-view').hidden = true
-  $('#auth-view').hidden = false
-  if (window.Auth) Auth.show()
-}
-
+/* ── Arranque directo del dashboard, sin login ──────────────── */
 function showApp() {
-  $('#auth-view').hidden = true
   $('#app-view').hidden = false
-  const user = Settings.user
-  $('#user-badge').textContent = user?.name || user?.email || ''
-  $('#server-indicator').textContent = Settings.base || 'mismo servidor'
   loadAll()
   clearInterval(state.gridTimer)
   state.gridTimer = setInterval(loadAll, 6000)
 }
 
-function logout() {
-  Settings.token = ''
-  Settings.user = null
-  showAuth()
-  toast('Sesión cerrada')
-}
-
-$('#btn-logout').addEventListener('click', logout)
-$('#btn-settings').addEventListener('click', openSettings)
 $('#btn-refresh').addEventListener('click', loadAll)
 $('#btn-create').addEventListener('click', openCreate)
 
@@ -106,11 +85,13 @@ async function loadAll() {
     state.bots = botsRes.bots
     state.meta = metaRes
     state.serverOk = true
+    $('#server-indicator').textContent = 'servidor en línea'
     renderStats()
     renderBots()
   } catch (err) {
     state.serverOk = false
     $('#stat-status').textContent = 'sin servidor'
+    $('#server-indicator').textContent = 'servidor no disponible'
     if (!state.errorShown) {
       state.errorShown = true
       toast(err.message, true)
@@ -571,46 +552,5 @@ async function renderLogsTab(panel, id, silent = false) {
   )
 }
 
-/* ── Ajustes de conexión ────────────────────────────────────── */
-function openSettings() {
-  const base = h('input', { type: 'text', value: Settings.base, placeholder: 'https://mi-servidor.onrender.com' })
-  const save = h('button', { class: 'btn', type: 'button' }, 'Guardar')
-  save.addEventListener('click', () => {
-    Settings.base = base.value.trim()
-    closeModal()
-    toast('Ajustes guardados')
-    showApp()
-  })
-
-  openModal([
-    modalHead('Ajustes de conexión'),
-    h('form', { class: 'form-grid', onsubmit: (ev) => ev.preventDefault() },
-      h('label', { class: 'field full' }, h('span', {}, 'URL del servidor'), base,
-        h('span', { class: 'hint' }, 'Déjalo vacío para rutas relativas (web y API en el mismo dominio). Si la web está en Vercel y el servidor en Render/VPS/Termux, pon aquí la URL del servidor.')),
-      h('div', { class: 'modal-foot full' },
-        h('button', { class: 'btn ghost', type: 'button', onclick: closeModal }, 'Cancelar'),
-        save
-      )
-    )
-  ])
-}
-
 /* ── Arranque ───────────────────────────────────────────────── */
-async function boot() {
-  await Auth.init()
-  if (!Settings.ready) {
-    showAuth()
-    return
-  }
-  try {
-    const res = await Api.me()
-    Settings.user = res.user
-    showApp()
-  } catch (_) {
-    Settings.token = ''
-    Settings.user = null
-    showAuth()
-  }
-}
-
-boot()
+showApp()

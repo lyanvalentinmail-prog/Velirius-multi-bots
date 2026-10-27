@@ -11,11 +11,10 @@ const DB_FILE = path.join(config.DATA_DIR, 'bots.json')
  * Configuración por defecto de un sub-bot recién creado.
  * Todos estos campos son editables desde el dashboard.
  */
-function defaultBot(body = {}, ownerId = null) {
+function defaultBot(body = {}) {
   const now = new Date().toISOString()
   return {
     id: body.id || crypto.randomBytes(6).toString('hex'),
-    ownerId,
     name: body.name || 'Velirius Bot',
     prefix: body.prefix || '.',
     // El banner es la línea decorativa que encabeza el menú.
@@ -57,43 +56,21 @@ function writeAll(data) {
 }
 
 const store = {
-  // Lista global (sistema: reconexión al arrancar, migraciones).
   list() {
     return Object.values(readAll()).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-  },
-
-  // Bots visibles para un usuario. ownerId null = servicio/global.
-  listForOwner(ownerId) {
-    const all = this.list()
-    if (!ownerId) return all
-    return all.filter((bot) => bot.ownerId === ownerId)
   },
 
   get(id) {
     return readAll()[id] || null
   },
 
-  create(body, ownerId = null) {
-    const bot = defaultBot(body, ownerId)
+  create(body) {
+    const bot = defaultBot(body)
     const all = readAll()
     if (all[bot.id]) throw new Error('Ya existe un bot con ese ID')
     all[bot.id] = bot
     writeAll(all)
     return bot
-  },
-
-  // El primer usuario que se registra hereda los bots sin dueño
-  // (migración desde la versión anterior sin cuentas).
-  claimOwnerless(ownerId) {
-    const all = readAll()
-    let changed = false
-    for (const bot of Object.values(all)) {
-      if (!bot.ownerId) {
-        bot.ownerId = ownerId
-        changed = true
-      }
-    }
-    if (changed) writeAll(all)
   },
 
   update(id, patch = {}) {
