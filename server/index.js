@@ -6,8 +6,6 @@ const express = require('express')
 const cors = require('cors')
 
 const config = require('./src/config')
-const requireAuth = require('./src/middleware/auth')
-const authRouter = require('./src/routes/auth')
 const botsRouter = require('./src/routes/bots')
 const manager = require('./src/manager')
 
@@ -15,15 +13,13 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
 
-// Rutas públicas: salud, configuración y autenticación.
+// Salud pública.
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, status: 'en línea', app: config.APP_NAME, time: new Date().toISOString() })
 })
 
-app.use('/api/auth', authRouter)
-
-// Rutas protegidas: exigen sesión de usuario (o token de servicio).
-app.use('/api', requireAuth, botsRouter)
+// API del panel: acceso directo, sin login ni token.
+app.use('/api', botsRouter)
 
 // Errores globales de la API.
 app.use('/api', (err, req, res, next) => {
@@ -31,7 +27,7 @@ app.use('/api', (err, req, res, next) => {
   res.status(500).json({ ok: false, error: err.message })
 })
 
-// Dashboard estático (la misma carpeta web que se despliega en Vercel).
+// Dashboard estático servido en el mismo dominio (despliegue único).
 const webDir = path.resolve(__dirname, '..', 'web')
 if (fs.existsSync(webDir)) {
   app.use(express.static(webDir))
@@ -45,12 +41,9 @@ app.listen(config.PORT, config.HOST, async () => {
     '',
     '𓂃 ࣪ ִֶָ☾. ───────────────────────────────────────',
     `  ${config.APP_NAME}`,
-    `  Servidor:      http://localhost:${config.PORT}`,
-    `  API:           ${config.VELIRIUS_API}`,
-    `  Google login:  ${config.GOOGLE_CLIENT_ID ? 'activado' : 'desactivado (falta GOOGLE_CLIENT_ID)'}`,
-    config.DASHBOARD_TOKEN
-      ? `  Token servicio: ${config.DASHBOARD_TOKEN}`
-      : '  Cuentas:       registro por email + Google',
+    `  Servidor:  http://localhost:${config.PORT}`,
+    `  API:       ${config.VELIRIUS_API}`,
+    '  Acceso:    directo, sin login ni configuración',
     '𓂃 ࣪ ִֶָ☾. ───────────────────────────────────────',
     ''
   ].join('\n')
