@@ -44,26 +44,57 @@ function toast(message, bad = false) {
   toast._t = setTimeout(() => { node.hidden = true }, 3200)
 }
 
+function copyText(text) {
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text)
+  const ta = document.createElement('textarea')
+  ta.value = text
+  document.body.append(ta)
+  ta.select()
+  document.execCommand('copy')
+  ta.remove()
+  return Promise.resolve()
+}
+
 function statusPill(session) {
   const status = session?.status || 'desconectado'
   let cls = 'offline'
   if (status === 'conectado') cls = 'online'
   else if (/esperando|conectando|iniciando/.test(status)) cls = 'waiting'
+  else if (/error|cerrada/.test(status)) cls = 'offline'
   return h('span', { class: `pill ${cls}` }, status)
 }
 
 /* ── Estado de la aplicación ────────────────────────────────── */
 const state = { bots: [], meta: null, modalTimer: null, gridTimer: null, serverOk: false, errorShown: false }
 
-/* ── Arranque directo, sin pantalla de acceso ───────────────── */
+/* ── Vistas: autenticación / dashboard ──────────────────────── */
+function showAuth() {
+  clearInterval(state.gridTimer)
+  closeModal()
+  $('#app-view').hidden = true
+  $('#auth-view').hidden = false
+  if (window.Auth) Auth.show()
+}
+
 function showApp() {
+  $('#auth-view').hidden = true
   $('#app-view').hidden = false
+  const user = Settings.user
+  $('#user-badge').textContent = user?.name || user?.email || ''
   $('#server-indicator').textContent = Settings.base || 'mismo servidor'
   loadAll()
   clearInterval(state.gridTimer)
   state.gridTimer = setInterval(loadAll, 6000)
 }
 
+function logout() {
+  Settings.token = ''
+  Settings.user = null
+  showAuth()
+  toast('Sesión cerrada')
+}
+
+$('#btn-logout').addEventListener('click', logout)
 $('#btn-settings').addEventListener('click', openSettings)
 $('#btn-refresh').addEventListener('click', loadAll)
 $('#btn-create').addEventListener('click', openCreate)
@@ -78,8 +109,6 @@ async function loadAll() {
     renderStats()
     renderBots()
   } catch (err) {
-    // Sin servidor disponible se refleja en la barra de estado;
-    // el toast solo aparece una vez para no repetirse cada 6 s.
     state.serverOk = false
     $('#stat-status').textContent = 'sin servidor'
     if (!state.errorShown) {
@@ -131,8 +160,8 @@ function renderBots() {
             }, 'Detener')
           : h('button', {
               class: 'btn small',
-              onclick: async () => { try { await Api.start(bot.id, { method: 'qr' }); toast('Iniciando con QR...'); loadAll() } catch (e) { toast(e.message, true) } }
-            }, 'Iniciar QR')
+              onclick: () => openDetail(bot.id)
+            }, 'Vincular')
       )
     )
     grid.append(card)
@@ -192,7 +221,7 @@ function openCreate() {
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault()
     try {
-      await Api.createBot({
+      const res = await Api.createBot({
         name: name.value.trim(),
         prefix: prefix.value.trim() || '.',
         mode: mode.value,
@@ -202,6 +231,7 @@ function openCreate() {
       closeModal()
       toast('Sub-bot creado')
       loadAll()
+      openDetail(res.bot.id)
     } catch (err) {
       toast(err.message, true)
     }
@@ -223,7 +253,7 @@ async function openDetail(id) {
 
   const head = modalHead(`Editar · ${bot.name}`)
   const tabs = h('div', { class: 'tabs' },
-    h('button', { class: 'tab active', 'data-tab': 'session', type: 'button' }, 'Sesión'),
+    h('button', { class: 'tab active', 'data-tab': 'session', type: 'button' }, 'Vincular'),
     h('button', { class: 'tab', 'data-tab': 'config', type: 'button' }, 'Configuración'),
     h('button', { class: 'tab', 'data-tab': 'logs', type: 'button' }, 'Registros')
   )
@@ -250,6 +280,60 @@ async function openDetail(id) {
   }, 3000)
 }
 
+/* ── Selector de método de vinculación ──────────────────────── */
+function methodPicker(onStart) {
+  let method = 'qr'
+
+  const qrCard = h('button', { type: 'button', class: 'method-card active' },
+    h('span', { class: 'method-icon' }, '▣'),
+    h('span', { class: 'method-title' }, 'Código QR'),
+    h('span', { class: 'method-desc' }, 'Escanea con WhatsApp → Dispositivos vinculados')
+  )
+  const pairCard = h('button', { type: 'button', class: 'method-card' },
+    h('span', { class: 'method-icon' }, '⌗'),
+    h('span', { class: 'method-title' }, 'Pairing code'),
+    h('span', { class: 'method-desc' }, 'Vincula con tu número, sin escanear')
+  )
+
+  const phone = h('input', { type: 'tel', placeholder: '59896719709', inputmode: 'numeric' })
+  const phoneField = h('label', { class: 'field full', hidden: true },
+    h('span', {}, 'Número de WhatsApp (con código de país, sin +)'),
+    phone,
+    h('span', { class: 'hint' }, 'Ejemplo: 59896719709')
+  )
+
+  const select = (next) => {
+    method = next
+    qrCard.classList.toggle('active', method === 'qr')
+    pairCard.classList.toggle('active', method === 'pairing')
+    phoneField.hidden = method !== 'pairing'
+  }
+  qrCard.addEventListener('click', () => select('qr'))
+  pairCard.addEventListener('click', () => select('pairing'))
+
+  const start = h('button', { class: 'btn', type: 'button' }, 'Iniciar vinculación')
+  start.addEventListener('click', async () => {
+    const payload = { method }
+    if (method === 'pairing') {
+      const digits = phone.value.replace(/\D/g, '')
+      if (digits.length < 8) return toast('Escribe el número con código de país', true)
+      payload.phone = digits
+    }
+    start.disabled = true
+    try {
+      await onStart(payload)
+    } finally {
+      start.disabled = false
+    }
+  })
+
+  return h('div', { class: 'link-box' },
+    h('div', { class: 'method-grid' }, qrCard, pairCard),
+    phoneField,
+    h('div', { class: 'session-row' }, start)
+  )
+}
+
 /* ── Pestaña de sesión (QR / pairing code) ──────────────────── */
 async function renderSessionTab(panel, id, silent = false) {
   let session
@@ -260,6 +344,9 @@ async function renderSessionTab(panel, id, silent = false) {
     return
   }
 
+  // No sobrescribir el DOM si el usuario está escribiendo el número.
+  if (silent && panel.querySelector('.method-card')) return
+
   panel.innerHTML = ''
   const status = h('div', { class: 'session-row' },
     statusPill(session),
@@ -268,6 +355,7 @@ async function renderSessionTab(panel, id, silent = false) {
   )
   panel.append(h('div', { class: 'session-box' }, status))
 
+  // ── Conectado: acciones de mantenimiento ──
   if (session.running && session.status === 'conectado') {
     panel.append(h('div', { class: 'session-row' },
       h('button', {
@@ -281,68 +369,92 @@ async function renderSessionTab(panel, id, silent = false) {
       h('button', {
         class: 'btn danger', type: 'button',
         onclick: async () => {
-          if (!confirm('¿Cerrar la sesión de WhatsApp? Tendrás que volver a escanear el QR.')) return
-          try { await Api.logout(id); toast('Sesión cerrada'); renderSessionTab(panel, id) } catch (e) { toast(e.message, true) }
+          if (!confirm('¿Cerrar la sesión de WhatsApp? Tendrás que volver a vincular.')) return
+          try { await Api.logoutBot(id); toast('Sesión cerrada'); renderSessionTab(panel, id) } catch (e) { toast(e.message, true) }
         }
       }, 'Cerrar sesión')
     ))
     return
   }
 
-  if (session.running && session.qr) {
+  // ── Vinculación en curso: QR ──
+  if (session.running && session.method === 'qr' && session.qr) {
     panel.append(
       h('div', { class: 'qr-box' }, h('img', { src: session.qr, alt: 'Código QR de WhatsApp' })),
-      h('p', { class: 'session-note' }, 'Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo y escanea el QR. Se refresca solo.')
+      h('p', { class: 'session-note' }, 'En tu teléfono: WhatsApp → Ajustes → Dispositivos vinculados → Vincular dispositivo → escanea este QR.'),
+      h('div', { class: 'session-row' },
+        h('button', {
+          class: 'btn ghost', type: 'button',
+          onclick: () => Api.stop(id).then(() => { toast('Detenido'); renderSessionTab(panel, id) }).catch((e) => toast(e.message, true))
+        }, 'Cancelar y elegir otro método')
+      )
     )
-  }
-
-  if (session.running && session.pairingCode) {
-    panel.append(
-      h('div', { class: 'pairing-code' }, session.pairingCode),
-      h('p', { class: 'session-note' }, 'En WhatsApp: Dispositivos vinculados → Vincular con número de teléfono. Escribe este código de 8 caracteres.')
-    )
-  }
-
-  if (session.running) {
-    panel.append(h('div', { class: 'session-row' },
-      h('button', {
-        class: 'btn danger', type: 'button',
-        onclick: () => Api.stop(id).then(() => { toast('Detenido'); renderSessionTab(panel, id) }).catch((e) => toast(e.message, true))
-      }, 'Detener')
-    ))
     return
   }
 
-  // Bot no ejecutándose: elegir método de vinculación.
-  const method = h('select', {},
-    h('option', { value: 'qr' }, 'Código QR'),
-    h('option', { value: 'pairing' }, 'Pairing code (número de teléfono)')
-  )
-  const phone = h('input', { type: 'text', placeholder: '59896719709 (con país, sin +)' })
-  const phoneField = h('label', { class: 'field full', hidden: true }, h('span', {}, 'Número para pairing'), phone)
-  method.addEventListener('change', () => { phoneField.hidden = method.value !== 'pairing' })
+  // ── Vinculación en curso: pairing code ──
+  if (session.running && session.method === 'pairing' && session.pairingCode) {
+    const copy = h('button', { class: 'btn ghost', type: 'button' }, 'Copiar código')
+    copy.addEventListener('click', () => copyText(session.pairingCode).then(() => toast('Código copiado')))
+    panel.append(
+      h('div', { class: 'pairing-code' }, session.pairingCode),
+      h('p', { class: 'session-note' },
+        `En tu teléfono: WhatsApp → Dispositivos vinculados → Vincular dispositivo → "¿Vincular con el número de teléfono?" → escribe este código para el número ${session.phone || ''}.`),
+      h('div', { class: 'session-row' },
+        copy,
+        h('button', {
+          class: 'btn danger', type: 'button',
+          onclick: () => Api.stop(id).then(() => { toast('Detenido'); renderSessionTab(panel, id) }).catch((e) => toast(e.message, true))
+        }, 'Cancelar')
+      )
+    )
+    return
+  }
 
-  const startBtn = h('button', { class: 'btn', type: 'button' }, 'Iniciar sesión')
-  startBtn.addEventListener('click', async () => {
+  // ── Error durante la vinculación ──
+  if (session.running && /error|cerrada/.test(session.status)) {
+    panel.append(
+      h('p', { class: 'error-box' },
+        `La vinculación falló (${session.status}). En la pestaña Registros verás el detalle. ` +
+        'Suele ser un problema de red o que el código expiró; reintenta o cambia de método.'),
+      h('div', { class: 'session-row' },
+        h('button', {
+          class: 'btn', type: 'button',
+          onclick: () => Api.restart(id).then(() => { toast('Reintentando...'); renderSessionTab(panel, id) }).catch((e) => toast(e.message, true))
+        }, 'Reintentar'),
+        h('button', {
+          class: 'btn danger', type: 'button',
+          onclick: () => Api.stop(id).then(() => { toast('Detenido'); renderSessionTab(panel, id) }).catch((e) => toast(e.message, true))
+        }, 'Detener')
+      )
+    )
+    return
+  }
+
+  // ── En ejecución pero esperando todavía (QR/pairing generándose) ──
+  if (session.running) {
+    panel.append(
+      h('p', { class: 'session-note' }, `Generando ${session.method === 'pairing' ? 'pairing code' : 'QR'}... espera unos segundos (se actualiza solo).`),
+      h('div', { class: 'session-row' },
+        h('button', {
+          class: 'btn danger', type: 'button',
+          onclick: () => Api.stop(id).then(() => { toast('Detenido'); renderSessionTab(panel, id) }).catch((e) => toast(e.message, true))
+        }, 'Detener')
+      )
+    )
+    return
+  }
+
+  // ── Sin ejecutar: elegir cómo vincular ──
+  panel.append(methodPicker(async (payload) => {
     try {
-      await Api.start(id, {
-        method: method.value,
-        phone: method.value === 'pairing' ? phone.value.replace(/\D/g, '') : undefined
-      })
-      toast(method.value === 'pairing' ? 'Pairing code solicitado' : 'QR generándose...')
+      await Api.start(id, payload)
+      toast(payload.method === 'pairing' ? 'Pairing code solicitado' : 'QR generándose...')
       renderSessionTab(panel, id)
     } catch (err) {
       toast(err.message, true)
     }
-  })
-
-  panel.append(
-    h('div', { class: 'session-box' },
-      h('label', { class: 'field' }, h('span', {}, 'Método de vinculación'), method),
-      phoneField,
-      h('div', { class: 'session-row' }, startBtn)
-    )
-  )
+  }))
 }
 
 /* ── Pestaña de configuración ───────────────────────────────── */
@@ -462,23 +574,19 @@ async function renderLogsTab(panel, id, silent = false) {
 /* ── Ajustes de conexión ────────────────────────────────────── */
 function openSettings() {
   const base = h('input', { type: 'text', value: Settings.base, placeholder: 'https://mi-servidor.onrender.com' })
-  const token = h('input', { type: 'password', value: Settings.token })
   const save = h('button', { class: 'btn', type: 'button' }, 'Guardar')
   save.addEventListener('click', () => {
     Settings.base = base.value.trim()
-    Settings.token = token.value.trim()
     closeModal()
     toast('Ajustes guardados')
     showApp()
   })
 
   openModal([
-    modalHead('Ajustes de conexión (opcional)'),
+    modalHead('Ajustes de conexión'),
     h('form', { class: 'form-grid', onsubmit: (ev) => ev.preventDefault() },
       h('label', { class: 'field full' }, h('span', {}, 'URL del servidor'), base,
-        h('span', { class: 'hint' }, 'Déjalo vacío para usar rutas relativas (web y API en el mismo sitio). Solo es necesario si esta web está en Vercel y el servidor en Render, VPS o Termux.')),
-      h('label', { class: 'field full' }, h('span', {}, 'Token del dashboard'), token,
-        h('span', { class: 'hint' }, 'Opcional: se deja vacío salvo que el servidor tenga DASHBOARD_TOKEN definido.')),
+        h('span', { class: 'hint' }, 'Déjalo vacío para rutas relativas (web y API en el mismo dominio). Si la web está en Vercel y el servidor en Render/VPS/Termux, pon aquí la URL del servidor.')),
       h('div', { class: 'modal-foot full' },
         h('button', { class: 'btn ghost', type: 'button', onclick: closeModal }, 'Cancelar'),
         save
@@ -487,5 +595,22 @@ function openSettings() {
   ])
 }
 
-/* ── Arranque: entra directo al dashboard, sin login ────────── */
-showApp()
+/* ── Arranque ───────────────────────────────────────────────── */
+async function boot() {
+  await Auth.init()
+  if (!Settings.ready) {
+    showAuth()
+    return
+  }
+  try {
+    const res = await Api.me()
+    Settings.user = res.user
+    showApp()
+  } catch (_) {
+    Settings.token = ''
+    Settings.user = null
+    showAuth()
+  }
+}
+
+boot()

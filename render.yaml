@@ -22,8 +22,16 @@ services:
         value: production
       - key: PORT
         sync: false
-      # Sin DASHBOARD_TOKEN el dashboard queda abierto sin login.
-      # Para protegerlo, añade esta variable con un valor secreto.
+      # Secreto para firmar las sesiones (si se omite se autogenera
+      # y se guarda en el disco persistente).
+      - key: AUTH_SECRET
+        generateValue: true
+      # Client ID de Google OAuth para el botón "Entrar con Google".
+      # Créalo en Google Cloud Console → Credentials → OAuth client ID
+      # (tipo Web) y añade aquí el valor. Vacío = Google desactivado.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      # Token de servicio opcional para acceder a la API sin cuenta.
       # - key: DASHBOARD_TOKEN
       #   sync: false
       - key: VELIRIUS_API

@@ -6,7 +6,8 @@ const express = require('express')
 const cors = require('cors')
 
 const config = require('./src/config')
-const requireToken = require('./src/middleware/auth')
+const requireAuth = require('./src/middleware/auth')
+const authRouter = require('./src/routes/auth')
 const botsRouter = require('./src/routes/bots')
 const manager = require('./src/manager')
 
@@ -14,25 +15,15 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
 
-// Rutas públicas.
+// Rutas públicas: salud, configuración y autenticación.
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, status: 'en línea', app: config.APP_NAME, time: new Date().toISOString() })
 })
 
-app.post('/api/login', (req, res) => {
-  // Sin token configurado, el acceso está abierto.
-  if (!config.AUTH_ENABLED) {
-    return res.json({ ok: true, appName: config.APP_NAME, authEnabled: false })
-  }
-  const token = (req.body?.token || '').trim()
-  if (token !== config.DASHBOARD_TOKEN) {
-    return res.status(401).json({ ok: false, error: 'Token incorrecto', authEnabled: true })
-  }
-  res.json({ ok: true, appName: config.APP_NAME, authEnabled: true })
-})
+app.use('/api/auth', authRouter)
 
-// Rutas protegidas del dashboard.
-app.use('/api', requireToken, botsRouter)
+// Rutas protegidas: exigen sesión de usuario (o token de servicio).
+app.use('/api', requireAuth, botsRouter)
 
 // Errores globales de la API.
 app.use('/api', (err, req, res, next) => {
@@ -54,11 +45,12 @@ app.listen(config.PORT, config.HOST, async () => {
     '',
     '𓂃 ࣪ ִֶָ☾. ───────────────────────────────────────',
     `  ${config.APP_NAME}`,
-    `  Servidor:  http://localhost:${config.PORT}`,
-    `  API:       ${config.VELIRIUS_API}`,
-    config.AUTH_ENABLED
-      ? `  Token del dashboard: ${config.DASHBOARD_TOKEN}`
-      : '  Acceso del dashboard: ABIERTO (sin token)',
+    `  Servidor:      http://localhost:${config.PORT}`,
+    `  API:           ${config.VELIRIUS_API}`,
+    `  Google login:  ${config.GOOGLE_CLIENT_ID ? 'activado' : 'desactivado (falta GOOGLE_CLIENT_ID)'}`,
+    config.DASHBOARD_TOKEN
+      ? `  Token servicio: ${config.DASHBOARD_TOKEN}`
+      : '  Cuentas:       registro por email + Google',
     '𓂃 ࣪ ִֶָ☾. ───────────────────────────────────────',
     ''
   ].join('\n')

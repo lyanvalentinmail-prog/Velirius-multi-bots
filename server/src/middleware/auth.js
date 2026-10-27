@@ -1,24 +1,40 @@
 'use strict'
 
 const config = require('../config')
+const users = require('../auth/users')
+const { verifyToken } = require('../auth/tokens')
 
 /**
- * Protege las rutas del dashboard con el token secreto.
- * Si no hay DASHBOARD_TOKEN configurado, la API queda abierta
- * y el panel entra sin pedir credenciales.
+ * Exige una sesión de usuario válida (token firmado).
+ * Acepta además el DASHBOARD_TOKEN de servicio si está definido,
+ * pensado para scripts o integraciones externas.
  */
-function requireToken(req, res, next) {
-  if (!config.AUTH_ENABLED) return next()
-
+function requireAuth(req, res, next) {
   const header = req.headers.authorization || ''
   const token = header.startsWith('Bearer ')
     ? header.slice(7).trim()
-    : (req.headers['x-dashboard-token'] || req.query.token || '').trim()
+    : (req.headers['x-dashboard-token'] || '').trim()
 
-  if (!token || token !== config.DASHBOARD_TOKEN) {
-    return res.status(401).json({ ok: false, error: 'Token inválido o ausente' })
+  if (!token) {
+    return res.status(401).json({ ok: false, error: 'No autenticado' })
   }
-  next()
+
+  // Token de servicio heredado.
+  if (config.DASHBOARD_TOKEN && token === config.DASHBOARD_TOKEN) {
+    req.service = true
+    req.user = { id: null, email: 'service-account', name: 'Servicio' }
+    return next()
+  }
+
+  try {
+    const payload = verifyToken(token)
+    const user = users.findById(payload.sub)
+    if (!user) return res.status(401).json({ ok: false, error: 'Usuario no encontrado' })
+    req.user = user
+    next()
+  } catch (err) {
+    return res.status(401).json({ ok: false, error: err.message })
+  }
 }
 
-module.exports = requireToken
+module.exports = requireAuth

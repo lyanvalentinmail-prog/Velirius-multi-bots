@@ -32,6 +32,89 @@
   margin: 0;
 }
 
+/* ── Pantalla de autenticación ──────────────────────────────── */
+.auth-card { max-width: 430px; height: auto; min-height: 0; gap: 4px; }
+.login-form { display: grid; gap: 12px; margin-top: 10px; }
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+.auth-tab {
+  border: 2px solid var(--ink);
+  background: #fff;
+  border-radius: 6px;
+  padding: 9px 6px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.auth-tab.active { background: var(--ink); color: #fff; }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.google-button { display: flex; justify-content: center; min-height: 44px; align-items: center; }
+.google-button .gsi-material-button { width: 280px; }
+.link-button {
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 10.5px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  margin-top: 8px;
+}
+.link-button:hover { color: var(--ink); }
+.user-badge {
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #d7d7d7;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Selector de método de vinculación ──────────────────────── */
+.link-box { display: grid; gap: 12px; }
+.method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.method-card {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  padding: 16px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.method-card:hover { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15); }
+.method-card.active { background: var(--ink); color: #fff; }
+.method-icon { font-size: 26px; line-height: 1; }
+.method-title { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 13px; letter-spacing: 0.6px; text-transform: uppercase; }
+.method-desc { font-size: 9.5px; line-height: 1.4; color: var(--muted); }
+.method-card.active .method-desc { color: #cfcfcf; }
+
 /* ── Barra superior ─────────────────────────────────────────── */
 .topbar {
   display: flex;
