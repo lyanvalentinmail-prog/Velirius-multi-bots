@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "$comment": "Dashboard estatico de Velirius Multi-Bots. Vercel solo aloja la web; el servidor de Baileys corre en Render, un VPS o Termux, y se configura en el panel (campo URL del servidor).",
   "outputDirectory": "web",
   "cleanUrls": true,
   "trailingSlash": false,
